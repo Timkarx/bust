@@ -10,6 +10,8 @@ fn main() {
     match url.get() {
         Ok(resp) => {
             println!("Response:\n{}", resp);
+            let bytes = resp.as_bytes();
+            parser::parse_html(bytes);
             let headers = parser::parse_response_headers(resp);
             println!("{:#?}", headers);
 

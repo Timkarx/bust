@@ -6,10 +6,41 @@ pub struct HTMLElement {
     children: Vec<Box<HTMLElement>>,
 }
 
-pub fn parse_html(response: String) {
-    let chars = response.chars();
-    // Firstly we parse the headers into a data struct: dict?
-    // Secondly we parse the html into a custom data struct
+pub fn parse_html(bytes: &[u8]) {
+    let mut stack = Vec::<String>::new();
+    let mut buf = Vec::new();
+    let mut i = 0;
+    let n = bytes.len();
+
+    while i < n {
+        // Find the first tag opening <
+        if bytes[i] != b'<' {
+            while i < n && bytes[i] != b'<' {
+                i += 1;
+            }
+        }
+        // Add everything inside tag to buff until > char
+        // TODO: Add logic for self closing tags
+        while i < n && bytes[i] != b'>' {
+            buf.push(bytes[i]);
+            i += 1;
+        }
+
+        if i == n { break }
+
+        if bytes[i] == b'>' {
+            buf.push(bytes[i]);
+            let Ok(tag_name) = String::from_utf8(buf.clone()) else {
+                panic!("Oopsie")
+            };
+            stack.push(tag_name);
+            buf.clear();
+        }
+
+        // Now look for closing tag
+    }
+
+    println!("{:#?}", stack);
 }
 
 pub fn parse_response_headers(response: String) -> HashMap<String, String> {
@@ -32,7 +63,7 @@ pub fn parse_response_headers(response: String) -> HashMap<String, String> {
             continue;
         }
         if char == '<' {
-            return headers
+            return headers;
         }
         buf.push(char)
     }
