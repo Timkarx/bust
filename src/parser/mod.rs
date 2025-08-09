@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 pub struct HTMLElement {
     name: String,
+    prev: Option<Box<HTMLElement>>,
+    children: Vec<Box<HTMLElement>>,
 }
 
 pub fn parse_html(response: String) {
