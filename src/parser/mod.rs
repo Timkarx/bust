@@ -3,23 +3,9 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 static SELF_CLOSING_TAGS: [&str; 14] = [
-    "area",
-    "base",
-    "br",
-    "col",
-    "embed",
-    "hr",
-    "img",
-    "input",
-    "link",
-    "meta",
-    "param",
-    "source",
-    "track",
-    "wbr",
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+    "track", "wbr",
 ];
-
-pub trait Parser {}
 
 #[derive(Debug)]
 pub struct HTMLElement {
@@ -29,6 +15,8 @@ pub struct HTMLElement {
 }
 
 pub struct HTMLTextElement(String);
+
+pub struct ParserErr(String);
 
 pub fn parse_html(bytes: &[u8]) {
     let mut stack = Vec::<Rc<RefCell<HTMLElement>>>::new();
@@ -54,19 +42,41 @@ pub fn parse_html(bytes: &[u8]) {
             buf.clear();
         } else {
             buf.push(bytes[i]);
-            i += 1;
         }
+        i += 1;
     }
 
-    println!("{:#?}", stack);
+    let entry_point = stack.pop();
+
+    println!("{:#?}", entry_point);
 }
 
 fn parser_result(stack: Vec<Rc<RefCell<HTMLElement>>>) {}
+
+fn add_void_tag(tag: String, stack: &mut Vec<Rc<RefCell<HTMLElement>>>) -> () {
+    let weak_parent = stack.last().map(|x| Rc::downgrade(x));
+    let node = Rc::new(RefCell::new(HTMLElement {
+        name: tag,
+        children: Vec::new(),
+        parent: weak_parent,
+    }));
+    stack.last().inspect(|x| x.borrow_mut().children.push(node));
+}
+
+fn parse_attributes(tag_inner: String) -> String {
+    let mut tag_content: Vec<&str> = tag_inner.splitn(2, ' ').collect();
+    if tag_content.is_empty() { panic!("Tag name is empty") };
+    let tag_clean = tag_content.remove(0).into();
+    println!("Tag Name: {}", tag_clean);
+    tag_clean
+
+}
 
 fn add_tag(tag: String, stack: &mut Vec<Rc<RefCell<HTMLElement>>>) {
     if tag.is_empty() {
         return;
     }
+    let tag = parse_attributes(tag);
     let tag_as_bytes = tag.as_bytes();
     // If tag is closing
     if tag_as_bytes[0] == b'/' {
@@ -76,8 +86,8 @@ fn add_tag(tag: String, stack: &mut Vec<Rc<RefCell<HTMLElement>>>) {
         let node = stack.pop().unwrap();
         let parent = stack.last().unwrap();
         parent.borrow_mut().children.push(node);
-    } else if {
-
+    } else if SELF_CLOSING_TAGS.contains(&(tag.as_str())) {
+        add_void_tag(tag, stack);
     } else {
         // Stack is a vec of ref counted pointers to HTMLElement
         // We want parent to be either a pointer to an HTMLElement, or construct a None
