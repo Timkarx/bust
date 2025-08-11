@@ -1,46 +1,95 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::{Rc, Weak};
 
+static SELF_CLOSING_TAGS: [&str; 14] = [
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+];
+
+pub trait Parser {}
+
+#[derive(Debug)]
 pub struct HTMLElement {
     name: String,
-    prev: Option<Box<HTMLElement>>,
-    children: Vec<Box<HTMLElement>>,
+    children: Vec<Rc<RefCell<HTMLElement>>>,
+    parent: Option<Weak<RefCell<HTMLElement>>>,
 }
 
+pub struct HTMLTextElement(String);
+
 pub fn parse_html(bytes: &[u8]) {
-    let mut stack = Vec::<String>::new();
+    let mut stack = Vec::<Rc<RefCell<HTMLElement>>>::new();
     let mut buf = Vec::new();
     let mut i = 0;
     let n = bytes.len();
 
     while i < n {
         // Find the first tag opening <
-        if bytes[i] != b'<' {
-            while i < n && bytes[i] != b'<' {
-                i += 1;
+        if bytes[i] == b'<' {
+            if !buf.is_empty() {
+                //Add text
             }
+            buf.clear();
         }
         // Add everything inside tag to buff until > char
         // TODO: Add logic for self closing tags
-        while i < n && bytes[i] != b'>' {
-            buf.push(bytes[i]);
-            i += 1;
-        }
-
-        if i == n { break }
-
-        if bytes[i] == b'>' {
-            buf.push(bytes[i]);
+        else if bytes[i] == b'>' {
             let Ok(tag_name) = String::from_utf8(buf.clone()) else {
                 panic!("Oopsie")
             };
-            stack.push(tag_name);
+            add_tag(tag_name, &mut stack);
             buf.clear();
+        } else {
+            buf.push(bytes[i]);
+            i += 1;
         }
-
-        // Now look for closing tag
     }
 
     println!("{:#?}", stack);
+}
+
+fn parser_result(stack: Vec<Rc<RefCell<HTMLElement>>>) {}
+
+fn add_tag(tag: String, stack: &mut Vec<Rc<RefCell<HTMLElement>>>) {
+    if tag.is_empty() {
+        return;
+    }
+    let tag_as_bytes = tag.as_bytes();
+    // If tag is closing
+    if tag_as_bytes[0] == b'/' {
+        if stack.is_empty() {
+            return;
+        }
+        let node = stack.pop().unwrap();
+        let parent = stack.last().unwrap();
+        parent.borrow_mut().children.push(node);
+    } else if {
+
+    } else {
+        // Stack is a vec of ref counted pointers to HTMLElement
+        // We want parent to be either a pointer to an HTMLElement, or construct a None
+        let parent = stack.last().map(|x| Rc::downgrade(x));
+        let node = Rc::new(RefCell::new(HTMLElement {
+            name: tag,
+            children: Vec::new(),
+            parent,
+        }));
+        stack.push(node);
+    }
+    // TODO: handle self-closing tags
 }
 
 pub fn parse_response_headers(response: String) -> HashMap<String, String> {
