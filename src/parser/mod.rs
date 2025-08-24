@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -18,7 +21,7 @@ pub struct HTMLTextElement(String);
 
 pub struct ParserErr(String);
 
-pub fn parse_html(bytes: &[u8]) {
+pub fn parse_html(bytes: &[u8]) -> Rc<RefCell<HTMLElement>> {
     let mut stack = Vec::<Rc<RefCell<HTMLElement>>>::new();
     let mut buf = Vec::new();
     let mut i = 0;
@@ -46,9 +49,7 @@ pub fn parse_html(bytes: &[u8]) {
         i += 1;
     }
 
-    let entry_point = stack.pop();
-
-    println!("{:#?}", entry_point);
+    stack.pop().expect("No entry point node left")
 }
 
 fn parser_result(stack: Vec<Rc<RefCell<HTMLElement>>>) {}
@@ -65,11 +66,12 @@ fn add_void_tag(tag: String, stack: &mut Vec<Rc<RefCell<HTMLElement>>>) -> () {
 
 fn parse_attributes(tag_inner: String) -> String {
     let mut tag_content: Vec<&str> = tag_inner.splitn(2, ' ').collect();
-    if tag_content.is_empty() { panic!("Tag name is empty") };
+    if tag_content.is_empty() {
+        panic!("Tag name is empty")
+    };
     let tag_clean = tag_content.remove(0).into();
     println!("Tag Name: {}", tag_clean);
     tag_clean
-
 }
 
 fn add_tag(tag: String, stack: &mut Vec<Rc<RefCell<HTMLElement>>>) {
@@ -90,7 +92,7 @@ fn add_tag(tag: String, stack: &mut Vec<Rc<RefCell<HTMLElement>>>) {
         add_void_tag(tag, stack);
     } else {
         // Stack is a vec of ref counted pointers to HTMLElement
-        // We want parent to be either a pointer to an HTMLElement, or construct a None
+        // We want parent to be either a weak pointer to an HTMLElement, or construct a None
         let parent = stack.last().map(|x| Rc::downgrade(x));
         let node = Rc::new(RefCell::new(HTMLElement {
             name: tag,
